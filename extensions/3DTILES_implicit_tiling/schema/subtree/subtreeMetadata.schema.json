@@ -1,12 +1,12 @@
 {
     "$schema": "https://json-schema.org/draft/2020-12/schema",
-    "$id": "metadataEntity.schema.json",
-    "title": "Metadata Entity",
+    "$id": "subtreeMetadata.schema.json",
+    "title": "Subtree Metadata",
     "type": "object",
     "description": "An object containing a reference to a class from a metadata schema, and property values that conform to the properties of that class.",
     "allOf": [
         {
-            "$ref": "tilesetProperty.schema.json"
+            "$ref": "subtreeProperty.schema.json"
         }
     ],
     "properties": {
