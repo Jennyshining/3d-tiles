@@ -4,10 +4,11 @@
 <!-- omit in toc -->
 ## Contributors
 
-* Peter Gagliardi, Cesium
 * Sean Lilley, Cesium
-* Sam Suhag, Cesium
+* Peter Gagliardi, Cesium
+* Marco Hutter, Cesium
 * Don McCurdy, Independent
+* Sam Suhag, Cesium
 * Bao Tran, Cesium
 * Patrick Cozzi, Cesium
 
@@ -85,7 +86,6 @@ The specification defines core concepts to be used by multiple 3D formats, and i
 
 * [`3DTILES_metadata`](../../extensions/3DTILES_metadata) (3D Tiles 1.0) — Assigns metadata to tilesets, tiles, groups, and contents
 * [`EXT_structural_metadata`](TODO) (glTF 2.0) —  Assigns metadata to vertices, texels, and features in a glTF asset
-* [3D Tiles 1.1](TODO)
 
 The specification does not enumerate or define the semantic meanings of metadata, and assumes that separate specifications will define semantics for their particular application or domain. One example is the [3D Metadata Semantic Reference](./Semantics/) which defines built-in semantics for 3D Tiles and glTF. Identifiers for externally-defined semantics can be stored within the 3D Metadata Specification.
 
@@ -129,7 +129,7 @@ Names (`name`) provide a human-readable label for a schema, and are not required
 
 #### Description
 
-Descriptions (`description`) provide a human-readable explanation of a schema, its purpose, or its contents. Typically at least a phrase, and possibly several sentences or paragraphs.
+Descriptions (`description`) provide a human-readable explanation of a schema, its purpose, or its contents. Typically at least a phrase, and possibly several sentences or paragraphs. Descriptions must be valid Unicode strings.
 
 #### Enums
 
@@ -143,13 +143,14 @@ Unordered set of [classes](#class).
 
 ### Enum
 
-An enum consists of a set of named values, represented as `(string, integer)` pairs. Each enum collection is identified by a unique ID.
+An enum consists of a set of named values, represented as `(string, integer)` pairs. Each enum is identified by a unique ID.
 
 > **Example:** A "species" enum with three possible tree species, as well as an "Unknown" value.
 >
 > - **ID:** "species"
 > - **Name:** "Species"
 > - **Description:** "Common tree species identified in the study."
+> - **Value type:** `INT32`
 >
 > | name        | value   |
 > |-------------|---------|
@@ -168,11 +169,11 @@ Names (`name`) provide a human-readable label for an enum, and are not required 
 
 #### Description
 
-Descriptions (`description`) provide a human-readable explanation of an enum, its purpose, or its contents. Typically at least a phrase, and possibly several sentences or paragraphs.
+Descriptions (`description`) provide a human-readable explanation of an enum, its purpose, or its contents. Typically at least a phrase, and possibly several sentences or paragraphs. Descriptions must be valid Unicode strings.
 
 #### Values
 
-An enum consists of a set of named values, represented as `(string, integer)` pairs. The following enum value types are supported: `INT8`, `UINT8`, `INT16`, `UINT16`, `INT32`, `UINT32`, `INT64`, and `UINT64`. See the [Component Type](#component-type) section for definitions of each. Smaller enum types limit the range of possible enum values, and allow more efficient binary encoding. For unsigned value types, enum values most be non-negative. Duplicate names or values within the same enum are not allowed.
+An enum consists of a set of named values, represented as `(string, integer)` pairs. The following enum value types are supported: `INT8`, `UINT8`, `INT16`, `UINT16`, `INT32`, `UINT32`, `INT64`, and `UINT64`. See the [Component Type](#component-type) section for definitions of each. Smaller enum types limit the range of possible enum values, and allow more efficient binary encoding. Duplicate names or values within the same enum are not allowed.
 
 ***
 
@@ -190,7 +191,7 @@ Names (`name`) provide a human-readable label for a class, and are not required 
 
 #### Description
 
-Descriptions (`description`) provide a human-readable explanation of a class, its purpose, or its contents. Typically at least a phrase, and possibly several sentences or paragraphs.
+Descriptions (`description`) provide a human-readable explanation of a class, its purpose, or its contents. Typically at least a phrase, and possibly several sentences or paragraphs. Descriptions must be valid Unicode strings.
 
 #### Properties
 
@@ -232,7 +233,7 @@ Names (`name`) provide a human-readable label for a property, and must be unique
 
 #### Description
 
-Descriptions (`description`) provide a human-readable explanation of a property, its purpose, or its contents. Typically at least a phrase, and possibly several sentences or paragraphs. To provide a machine-readable semantic meaning, a property must also define a [semantic](#semantic).
+Descriptions (`description`) provide a human-readable explanation of a property, its purpose, or its contents. Typically at least a phrase, and possibly several sentences or paragraphs. Descriptions must be valid Unicode strings. To provide a machine-readable semantic meaning, a property must also define a [semantic](#semantic).
 
 #### Semantic
 
@@ -250,9 +251,9 @@ A property's type (`type`) describes the structure of the value given for each e
 | VEC2    | Fixed-length vector with two (2) numeric components   |
 | VEC3    | Fixed-length vector with three (3) numeric components |
 | VEC4    | Fixed-length vector with four (4) numeric components  |
-| MAT2    | 2x2 matrix                                            |
-| MAT3    | 3x3 matrix                                            |
-| MAT4    | 4x4 matrix                                            |
+| MAT2    | 2x2 matrix with numeric components                    |
+| MAT3    | 3x3 matrix with numeric components                    |
+| MAT4    | 4x4 matrix with numeric components                    |
 | STRING  | A sequence of characters                              |
 | BOOLEAN | True or false                                         |
 | ENUM    | An enumerated type                                    |
@@ -284,14 +285,22 @@ Floating-point properties (`FLOAT32` and `FLOAT64`) must not include values `NaN
 
 #### Arrays
 
-A property can be declared to be a fixed- and variable length array, consisting of elements of the given type. For fixed-length arrays, a count (`count`) denotes the number of elements in each array, and must be ≥2. Variable-length arrays do not define a count, and arrays may have any length, including zero.
+A property can be declared to be a fixed- and variable-length array, consisting of elements of the given type. For fixed-length arrays, a count (`count`) denotes the number of elements in each array, and must be greater than or equal to 2. Variable-length arrays do not define a count and may have any length, including zero.
 
 #### Normalized Values
 
-Normalized properties (`normalized`) provide a compact alternative to larger floating-point types. Normalized values are stored as integers, but when accessed are transformed to floating-point form according to the following rules:
+Normalized properties (`normalized`) provide a compact alternative to larger floating-point types. Normalized values are stored as integers, but when accessed are transformed to floating-point according to the following equations:
 
-* Unsigned integer values (`UINT8`, `UINT16`, `UINT32`, `UINT64`) must be rescaled to the range `[0.0, 1.0]` (inclusive)
-* Signed integer values (`INT8`, `INT16`, `INT32`, `INT64`) must be rescaled to the range `[-1.0, 1.0]` (inclusive)
+| componentType | int to float                               | float to int                            |
+|---------------|--------------------------------------------|-----------------------------------------|
+| INT8          | `f = max(i / 127.0, -1.0)`                 | `i = round(f * 127.0)`                  |
+| UINT8         | `f = i / 255.0`                            | `i = round(f * 255.0)`                  |
+| INT16         | `f = max(i / 32767.0, -1.0)`               | `i = round(f * 32767.0)`                |
+| UINT16        | `f = i / 65535.0`                          | `i = round(f * 65535.0)`                |
+| INT32         | `f = max(i / 2147483647.0, -1.0)`          | `i = round(f * 2147483647.0)`           |
+| UINT32        | `f = i / 4294967295.0`                     | `i = round(f * 4294967295.0)`           |
+| INT64         | `f = max(i / 9223372036854775807.0, -1.0)` | `i = round(f * 9223372036854775807.0)`  |
+| UINT64        | `f = i / 18446744073709551615.0`           | `i = round(f * 18446744073709551615.0)` |
 
 `normalized` is only applicable to scalar, vector, and matrix types with integer component types.
 
@@ -333,7 +342,7 @@ Properties may optionally specify a No Data value (`noData`, or "sentinel value"
 
 `noData` values are especially useful when only some entities in a property table are missing property values (see [Binary Table Format](#binary-table-format)). Otherwise if all entities are missing property values the column may be omitted from the table and a `noData` value need not be provided. Entities encoded in the [JSON Format](#json-format) may omit the property instead of providing a `noData` value. `noData` values and omitted properties are functionally equivalent.
 
-A default value (`defaultValue`) may be provided for missing property values. This value must match the property definition and may be provided for any `type`. For `ENUM` types, a `noData` value should contain the name of the enum value as a string, rather than its integer value. If a default value is not provided, the behavior when encountering missing property values is implementation-defined.
+A default value (`defaultValue`) may be provided for missing property values. This value must match the property definition and may be provided for any `type`. For `ENUM` types, a `defaultValue` value should contain the name of the enum value as a string, rather than its integer value. If a default value is not provided, the behavior when encountering missing property values is implementation-defined.
 
 > **Example:** In the example below, a "tree" class is defined with `noData` indicating a specific enum value to be interpreted as missing data.
 >
@@ -449,13 +458,13 @@ For each case below, the offset of an array element `i` within its binary storag
 | `STRING`        | byte offset | `stringOffset[arrayOffset[id] + i]` |
 | All other types | array index | `arrayOffset[id] + i`               |
 
-Each expression in the table above defines an index into the underlying property array. For a property array of `FLOAT32` elements, index `3` would correspond to <u>_byte_</u> offset `3 * sizeof(FLOAT32) = 12` within that array. For an array of `BOOLEAN` components, offset `3` would correspond to <u>_bit_</u> offset `3`.
+Each expression in the table above defines an index into the underlying property array. For a property array of `SCALAR` elements with `FLOAT32` component type, index `3` corresponds to byte offset `3 * sizeof(FLOAT32)`. For a property array of `VEC4` elements with `FLOAT32` component type, index `3` corresponds to byte offset `3 * 4 * sizeof(FLOAT32) = 48`. For an array of `BOOLEAN` elements, offset `3` would correspond to <u>_bit_</u> offset `3`.
 
-> **Example:** Five variable-length arrays of UINT8 components, binary-encoded in a buffer. The associated property definition would be `type = "SCALAR"`, `componentType = "UINT8"`, and `count = undefined` (variable-length).
+> **Example:** Five variable-length arrays of UINT8 components, binary-encoded in a buffer. The associated property definition would be `type = "SCALAR"`, `componentType = "UINT8"`, and `array = true`.
 >
 > <img src="figures/array-of-ints.png"  alt="Variable-length array" width="640px">
 
-> **Example:** Two variable-length arrays of strings, binary-encoded in a buffer. The associated property definition would be `type = "STRING"` and `count = undefined` (variable-length). Observe that the last element of the array offset buffer points to the last element of the string offset buffer. This is because the last valid string offset is the next-to-last element of the string offset buffer.
+> **Example:** Two variable-length arrays of strings, binary-encoded in a buffer. The associated property definition would be `type = "STRING"` and `array = true` (variable-length). Observe that the last element of the array offset buffer points to the last element of the string offset buffer. This is because the last valid string offset is the next-to-last element of the string offset buffer.
 >
 > ![Variable-length array of string](figures/array-of-strings.png)
 
@@ -479,18 +488,18 @@ Each entity is represented as a JSON object with its `class` identified by a str
 >
 > _A class, "basicClass", composed of ten properties. `stringArrayProperty` count is undefined and therefore variable-length._
 >
-> | id                  | type      | componentType | count | enumType    | required |
-> |---------------------|-----------|---------------|-------|-------------|----------|
-> | floatProperty       | `SCALAR`  | `FLOAT64`     | `1`   |             | ✓        |
-> | integerProperty     | `SCALAR`  | `INT32`       | `1`   |             | ✓        |
-> | vectorProperty      | `VEC2`    | `FLOAT32`     | `1`   |             | ✓        |
-> | floatArrayProperty  | `SCALAR`  | `FLOAT32`     | `3`   |             | ✓        |
-> | vectorArrayProperty | `VEC2`    | `FLOAT32`     | `2`   |             | ✓        |
-> | booleanProperty     | `BOOLEAN` |               | `1`   |             | ✓        |
-> | stringProperty      | `STRING`  |               | `1`   |             | ✓        |
-> | enumProperty        | `ENUM`    |               | `1`   | `basicEnum` | ✓        |
-> | stringArrayProperty | `STRING`  |               |       |             | ✓        |
-> | optionalProperty    | `STRING`  |               | `1`   |             |          |
+> | id                  | type      | componentType | array   | count | enumType    | required |
+> |---------------------|-----------|---------------|---------|-------|-------------|----------|
+> | floatProperty       | `SCALAR`  | `FLOAT64`     | `false` |       |             | ✓        |
+> | integerProperty     | `SCALAR`  | `INT32`       | `false` |       |             | ✓        |
+> | vectorProperty      | `VEC2`    | `FLOAT32`     | `false` |       |             | ✓        |
+> | floatArrayProperty  | `SCALAR`  | `FLOAT32`     | `true`  | 3     |             | ✓        |
+> | vectorArrayProperty | `VEC2`    | `FLOAT32`     | `true`  | 2     |             | ✓        |
+> | booleanProperty     | `BOOLEAN` |               | `false` |       |             | ✓        |
+> | stringProperty      | `STRING`  |               | `false` |       |             | ✓        |
+> | enumProperty        | `ENUM`    |               | `false` |       | `basicEnum` | ✓        |
+> | stringArrayProperty | `STRING`  |               | `true`  |       |             | ✓        |
+> | optionalProperty    | `STRING`  |               | `false` |       |             |          |
 >
 > _A single entity encoded in JSON. Note that the optional property is omitted in this example._
 > ```jsonc

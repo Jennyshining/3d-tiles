@@ -99,19 +99,23 @@
 
 * Updated 3D Metadata Specification
   * Updated to draft version `3.0.0`
-  * TODO
+  * Updated schema definition. See notes below.
 * Updated 3D Metadata Semantic Reference
   * Updated to draft version `3.0.0`
   * `CONTENT_*` semantics should now be assigned to content metadata properties instead of tile metadata properties
   * Added `ATTRIBUTION_IDS` and `ATTRIBUTION_STRINGS` semantics for providing data attribution at multiple levels of granularity
+  * Added `TILESET_FEATURE_ID_SETS` semantic to list the feature ID sets present in glTF content referenced by the tileset
+  * Added `TILE_BOUNDING_S2_CELL` semantic
+  * Added `TILE_REFINE` semantic
+  * Added `TILE_TRANSFORM` semantic
+  * Added `CONTENT_BOUNDING_S2_CELL` semantics
+  * Added `CONTENT_URI` semantic
+  * Added `CONTENT_GROUP_ID` semantic
 * Updated schema definition
   * `type` is required and must be one of the following: `SCALAR`, `VEC2`, `VEC3`, `VEC4`, `MAT2`, `MAT3`, `MAT4`, `STRING`, `BOOLEAN`, `ENUM`
   * `componentType` is required for scalar, vector, and matrix types and must be one of the following: `INT8`, `UINT8`, `INT16`, `UINT16`, `INT32`, `UINT32`, `INT64`, `UINT64`, `FLOAT32`, `FLOAT64`
   * Arrays are now distinct from the type system
-    * Removed `ARRAY` type and `componentCount` property. Added `count` and `hasFixedCount` properties to indicate whether a property is a single element, fixed-length array, or variable-length array.
-    * To indicate that a property is a single element, `count` must be 1 and `hasFixedCount` must be true
-    * To indicate that a property is a fixed-length array, `count` must be greater than 1 and `hasFixedCount` must be true
-    * To indicate that a property is a variable-length array, `hasFixedCount` must be false and `count` may be omitted
+    * Removed `ARRAY` type and `componentCount` property; replaced with `array` and `count` properties. `array` is a boolean that indicates whether the property is an array. When `count` is defined the property is a fixed-length array. Otherwise the property is a variable-length array.
     * Arrays of vectors and matrices are now supported
   * Added `offset` and `scale` which are used to transform property values into a different range. Useful for quantized property values.
   * Added back `default`
@@ -163,4 +167,3 @@
     * Added `min` and `max` which store the minimum and maximum property values in the texture.
   * Added `propertyAttributes`, and additional metadata encoding for vertex data, in particular point clouds
 * Added `EXT_instance_features` extension (draft version `0.0.0`)
-  * TODO

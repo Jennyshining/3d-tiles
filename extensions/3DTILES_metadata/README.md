@@ -6,10 +6,11 @@
 
 * Sean Lilley, Cesium
 * Peter Gagliardi, Cesium
-* Sam Suhag, Cesium
+* Marco Hutter, Cesium
 * Don McCurdy, Independent
-* Patrick Cozzi, Cesium
+* Sam Suhag, Cesium
 * Bao Tran, Cesium
+* Patrick Cozzi, Cesium
 
 <!-- omit in toc -->
 ## Status
@@ -73,7 +74,6 @@ The figure below shows the relationship between entities (tilesets, tiles, conte
 
 <img src="figures/metadata-granularity.png"  alt="Metadata Granularity" width="600">
 
-[TODO: update image to include content metadata]
 
 ## Use Cases
 
@@ -116,7 +116,7 @@ Schemas may be embedded in tilesets with the `schema` property, or referenced ex
 >               },
 >               "owners": {
 >                 "type": "STRING",
->                 "hasFixedCount": false,
+>                 "array": true,
 >                 "description": "Names of owners."
 >               },
 >               "buildingType": {
@@ -314,7 +314,7 @@ Tileset authors may define their own additional statistics, like `_mode` in the 
 >               },
 >               "owners": {
 >                 "type": "STRING",
->                 "hasFixedCount": false
+>                 "array": true
 >               },
 >               "buildingType": {
 >                 "type": "ENUM",
@@ -365,7 +365,7 @@ Tileset authors may define their own additional statistics, like `_mode` in the 
 
 ### Overview
 
-While [classes](#class) within a schema define the data types and meanings of properties, properties do not take on particular values until a metadata is assigned (i.e. the class is "instatiated") as a particular metadata entity within the 3D Tiles hierarchy. Each metadata entity contains the name of the class that it is an instance of, as well as a dictionary of property values that correspond to the properties of that class. This common structure is defined in [metadataEntity.schema.json](./schema/metadataEntity.schema.json). 
+While [classes](#class) within a schema define the data types and meanings of properties, properties do not take on particular values until a metadata is assigned (i.e. the class is "instantiated") as a particular metadata entity within the 3D Tiles hierarchy. Each metadata entity contains the name of the class that it is an instance of, as well as a dictionary of property values that correspond to the properties of that class. This common structure is defined in [metadataEntity.schema.json](./schema/metadataEntity.schema.json).
 
 Each property value assigned must be defined by a class property with the same alphanumeric property ID, with values matching the data type of the class property. An entity may provide values for only a subset of the properties of its class, but class properties marked `required: true` must not be omitted.
 
@@ -451,7 +451,7 @@ Metadata assigned to implicit tiles is stored in a more compact binary form. See
 >               "countries": {
 >                 "description": "Countries a tile intersects.",
 >                 "type": "STRING",
->                 "hasFixedCount": false
+>                 "array": true
 >               }
 >             }
 >           }
@@ -575,7 +575,7 @@ Metadata assigned to implicit tile content is stored in a more compact binary fo
 >               "attributionStrings": {
 >                 "semantic": "ATTRIBUTION_STRINGS",
 >                 "type": "STRING",
->                 "hasFixedCount": false
+>                 "array": true
 >               },
 >               "triangleCount": {
 >                 "description": "The number of triangles in the glTF content",

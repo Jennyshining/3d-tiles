@@ -5,13 +5,13 @@
 ## Contributors
 
 * Peter Gagliardi, Cesium
-* Erixen Cruz, Cesium
 * Sam Suhag, Cesium
 * Sean Lilley, Cesium
 * Ian Lilley, Cesium
-* Josh Lawrence, Cesium
 * Marco Hutter, Cesium
 * Don McCurdy, Independent
+* Erixen Cruz, Cesium
+* Josh Lawrence, Cesium
 * Shehzan Mohammed, Cesium
 * Patrick Cozzi, Cesium
 
@@ -47,7 +47,8 @@ This extension is required, meaning it must be placed in both the `extensionsUse
     - [Tile Metadata](#tile-metadata)
     - [Content Metadata](#content-metadata)
     - [Subtree Metadata](#subtree-metadata)
-- [Subtree File Format](#subtree-file-format)
+- [Subtree JSON Format](#subtree-json-format)
+- [Subtree Binary Format](#subtree-binary-format)
 - [Appendix A: Availability Indexing](#appendix-a-availability-indexing)
 
 ## Overview
@@ -56,11 +57,13 @@ This extension defines a concise representation of quadtrees and octrees in 3D T
 
 Implicit tiling also allows for better interoperability with existing GIS data formats with implicitly defined tiling schemes. Some examples are [TMS](https://wiki.osgeo.org/wiki/Tile_Map_Service_Specification), [WMTS](https://www.ogc.org/standards/wmts), [S2](http://s2geometry.io/), and [CDB](https://docs.opengeospatial.org/is/15-113r5/15-113r5.html).
 
-In order to support sparse datasets, **availability** data determines which tiles exist. To support massive datasets, availability is partitioned into fixed-size **subtrees**. Subtrees may store **metadata** for available tiles and content.
+In order to support sparse datasets, **availability** data determines which tiles exist. To support massive datasets, availability is partitioned into fixed-size **subtrees**. Subtrees may store **metadata** for available tiles and contents.
 
-The `3DTILES_implicit_tiling` extension may be added to any tile in the tileset. The extension object defines how the tile is subdivided and where to locate content resources. The extension may be added to multiple tiles to create more complex subdivision schemes like double-headed quadtrees.
+The `3DTILES_implicit_tiling` extension may be added to any tile in the tileset. The extension object defines how the tile is subdivided and where to locate content resources. The extension may be added to multiple tiles to create more complex subdivision schemes.
 
-[TODO: diagram for double-headed quadtree and for implicit tiling as a whole]
+<img src="figures/sparse-octree.png" width="700" />
+
+_A point cloud organized into a sparse octree. Data source: Trimble_
 
 ## Tile Extension
 
@@ -105,7 +108,8 @@ The following properties about the implicit root tile are included in the extens
 The following constraints apply to implicit root tiles:
   
   * The tile must omit the `children` property
-  * The `content.uri` must not point to an [external tileset](../../../specification#external-tilesets)
+  * The tile must not have the `3DTILES_metadata` extension
+  * The `content.uri` must not point to an [external tileset](../../specification#external-tilesets)
   * The `content` must not have an associated `boundingVolume` property
 
 ## Subdivision Scheme
@@ -152,7 +156,7 @@ Implicit tiling only requires defining the subdivision scheme, refinement strate
 > 
 > Let the extent of the root bounding volume along one dimension *d* be *(min<sub>d</sub>, max<sub>d</sub>)*. The number of bounding volumes along that dimension for a given level  is *2<sup>level</sup>*. The size of each bounding volume at this level, along dimension *d*, is *size<sub>d</sub> = (max<sub>d</sub> - min<sub>d</sub>) / 2<sup>level</sup>*. The extent of the bounding volume of a child can then be computed directly as *(min<sub>d</sub> + size<sub>d</sub> * i, min<sub>d</sub> + size<sub>d</sub> * (i + 1))*, where *i* is the index of the child in dimension *d*. 
 
-The computed tile `boundingVolume` and `geometricError` can be overridden with [tile metadata](#tile-metadata), if desired. Content bounding volumes are not computed automatically but they may be provided by [content metadata](#content-metadata). 
+The computed tile `boundingVolume` and `geometricError` can be overridden with [tile metadata](#tile-metadata), if desired. Content bounding volumes are not computed automatically but they may be provided by [content metadata](#content-metadata). Tile and content bounding volumes must maintain [spatial coherence](../../specification/#bounding-volume-spatial-coherence).
 
 ## Tile Coordinates
 
@@ -264,7 +268,7 @@ Unlike tile and content availability, which store bits for every level in the su
 
 ### Metadata
 
-Subtrees may store metadata about available tiles and contents, as well as metadata about the subtree as a whole.
+Subtrees may store metadata at multiple granularities.
 
 * **Tile metadata** - metadata for available tiles in the subtree
 * **Content metadata** - metadata for available content in the subtree
@@ -278,29 +282,378 @@ Tile metadata exists only for available tiles and is tightly packed by an increa
 
 > **Implementation note:** To determine the index into a property value array for a particular tile, count the number of available tiles occurring before that index, according to the tile Availability Ordering. If `i` available tiles occur before a particular tile, that tile's property values are stored at index `i` of each property value array. These indices may be precomputed for all available tiles, as a single pass over the subtree availability buffer.
 
-Binary property values are located in a property table in the subtree. Details of binary value encoding, including how to determine property value offsets for mixed-length string and array values, are defined by the *Binary Table Format*.
+Tile properties can have [Semantics](../../specification/Metadata/Semantics) which define how property values should be interpreted. In particular, `TILE_BOUNDING_BOX`, `TILE_BOUNDING_REGION`, `TILE_BOUNDING_SPHERE`, `TILE_MINIMUM_HEIGHT`, and `TILE_MAXIMUM_HEIGHT` semantics each define a more specific bounding volume for a tile than is implicitly calculated from `3DTILES_implicit_tiling`. If more than one of these semantics are available for a tile, clients may select the most appropriate option based on use case and performance requirements.
 
-Tile properties can have [Semantics](../../specification/Metadata/Semantics) which define how property values should be interpreted. In particular, `TILE_BOUNDING_BOX`, `TILE_BOUNDING_REGION`, `TILE_BOUNDING_SPHERE`, `TILE_MINIMUM_HEIGHT`, and `TILE_MAXIMUM_HEIGHT` semantics each define a more specific bounding volume for a tile than is implicitly calculated from 3DTILES_implicit_tiling. If more than one of these semantics are available for a tile, clients may select the most appropriate option based on use case and performance requirements.
+> **Example:** The following diagram shows how tile height semantics may be used to define tighter bounding regions for an implicit tileset: The overall height of the bounding region of the whole tileset is 320. The bounding regions for the child tiles will be computed by splitting the bounding regions of the respective parent tile at its center. By default, the height will remain constant. By storing the _actual_ height of the contents in the respective region, and providing it as the `TILE_MAXIMUM_HEIGHT` for each available tile, it is possible to define the tightest-fitting bounding region for each level.
+>
+><img src="figures/tile-height-semantics.png" width="600" />
 
-[TODO: image + caption showing how TILE_MINIMUM_HEIGHT and TILE_MAXIMUM_HEIGHT can define a tighter range]
 
 The `TILE_GEOMETRIC_ERROR` semantic allows tiles to provide a geometric error that overrides the implicitly computed geometric error.
 
 #### Content Metadata
 
-Subtrees may also store metadata for tile content. Content metadata exists only for available content and is tightly packed by increasing tile index. Binary property values are encoded in a compact [*Binary Table Format*](../../specification/Metadata/README.md#binary-table-format) defined by the 3D Metadata Specification and are stored in a property table. If the implicit root tile has multiple contents — as supported by `EXT_multiple_contents` and 3D Tiles 1.1 — content metadata is stored in multiple property tables.
+Subtrees may also store metadata for tile content. Content metadata exists only for available content and is tightly packed by increasing tile index. Binary property values are encoded in a compact [*Binary Table Format*](../../specification/Metadata/README.md#binary-table-format) defined by the 3D Metadata Specification and are stored in a property table. If the implicit root tile has multiple contents — as supported by `3DTILES_multiple_contents` — content metadata is stored in multiple property tables.
 
-Content bounding volumes can be provided by content metadata semantics such as `CONTENT_BOUNDING_BOX`, `CONTENT_BOUNDING_REGION`, `CONTENT_BOUNDING_SPHERE`, `CONTENT_MINIMUM_HEIGHT`, and `CONTENT_MAXIMUM_HEIGHT`.
+Content bounding volumes are not computed automatically by `3DTILES_implicit_tiling` but may be provided by properties with semantics `CONTENT_BOUNDING_BOX`, `CONTENT_BOUNDING_REGION`, `CONTENT_BOUNDING_SPHERE`, `CONTENT_MINIMUM_HEIGHT`, and `CONTENT_MAXIMUM_HEIGHT`.
+
+If the tile content is assigned a [`group`](../3DTILES_metadata#content-group-properties) — such as with the `3DTILES_metadata` extension — all contents in the implicit tree are assigned to that group.
 
 #### Subtree Metadata
 
 Properties assigned to subtrees provide metadata about the subtree as a whole. Subtree metadata is encoded in JSON according to the [JSON Format](../../specification/Metadata/README.md#json-format) specification.
 
-## Subtree File Format
-
-🚧 In progress 🚧
+## Subtree JSON Format
 
 _Defined in [subtree.schema.json](schema/subtree/subtree.schema.json)._
+
+A **subtree file** is a JSON file that contains availability and metadata information for a single subtree. A subtree may reference external files containing binary data. An alternative [Binary Format](#subtree-binary-format) allows the JSON and binary data to be embedded into a single binary file.
+
+<!-- omit in toc -->
+#### Buffers and Buffer Views
+
+A **buffer** is a binary blob. Each buffer has a `uri` that refers to an external file containing buffer data and a `byteLength` describing the buffer size in bytes. Relative paths are relative to the subtree file. Data URIs are not allowed.
+
+In the [Binary Format](#subtree-binary-format) the first buffer may instead refer to the binary chunk of the subtree file, in which case the `uri` property must be undefined. This buffer is referred to as the _internal buffer_.
+
+A **buffer view** is a contiguous subset of a buffer. A buffer view's `buffer` property is an integer index to identify the buffer. A buffer view has a `byteOffset` and a `byteLength` to describe the range of bytes within the buffer. The `byteLength` does not include any padding. There may be multiple buffer views referencing a single buffer.
+
+For efficient memory access, the `byteOffset` of a buffer view must be aligned to a multiple of 8 bytes.
+
+<!-- omit in toc -->
+### Availability
+
+Tile availability (`tileAvailability`) and child subtree availability (`childSubtreeAvailability`) must always be provided for a subtree. 
+
+Content availability (`contentAvailability`) is an array of content availability objects. If the implicit root tile has a single content this array will have one element; if the tile has multiple contents - as supported by `3DTILES_multiple_contents` - this array will have multiple elements. If the implicit root tile does not have content then `contentAvailability` must be omitted.
+
+Availability may be represented either as a bitstream or a constant value. `bitstream` is an integer index that identifies the buffer view containing the availability bistream. `constant` is an integer indicating whether all of the elements are available (`1`) or all are unavailable (`0`). `availableCount` is an integer indicating how many `1` bits exist in the availability bitstream.
+
+Availability bitstreams are packed in binary using the format described in the [Booleans](../../specification/Metadata#booleans) section of the 3D Metadata Specification.
+
+> **Example:** The JSON description of a subtree where each tile is available, but not all tiles have content, and not all child subtrees are available:
+> 
+> ```json
+> {
+>   "buffers": [
+>     {
+>       "name": "Internal Buffer",
+>       "byteLength": 16
+>     },
+>     {
+>       "name": "External Buffer",
+>       "uri": "external.bin",
+>       "byteLength": 32
+>     }
+>   ],
+>   "bufferViews": [
+>     {
+>       "buffer": 0,
+>       "byteOffset": 0,
+>       "byteLength": 11
+>     },
+>     {
+>       "buffer": 1,
+>       "byteOffset": 0,
+>       "byteLength": 32
+>     }
+>   ],
+>   "tileAvailability": {
+>     "constant": 1,
+>   },
+>   "contentAvailability": [{
+>     "bitstream": 0,
+>     "availableCount": 60
+>   }],
+>   "childSubtreeAvailability": {
+>     "bitstream": 1
+>   }
+> }
+> ```
+>
+> The tile availability can be encoded by setting `tileAvailability.constant` to `1`, without needing an explicit bitstream, because all tiles in the subtree are available.
+> 
+> Only some tiles have content, and `contentAvailability.bufferView` indicates where the bitstream for the content availability is stored: The `bufferView` with index 0 refers to the `buffer` with index 0. This buffer does not have a `uri` property, and therefore refers to the _internal_ buffer that is stored directly in the binary chunk of the subtree binary file. The `byteOffset` and `byteLength` indicate that the content availability bitstream is stored in the bytes `[0...11)` of the internal buffer.
+>
+> Some child subtrees exist, so `childSubtreeAvailability.bufferView` refers to another bitstream. The `bufferView` with index 1 refers to the buffer with index `1`. This buffer has a `uri` property, indicating that this second bitstream is stored in an external binary file.
+
+<!-- omit in toc -->
+### Metadata
+
+Subtrees may store metadata at multiple granularities. `tileMetadata` is a property table containing metadata for available tiles. `contentMetadata` is an array of property tables containing metadata for available content. If the implicit root tile has a single content this array will have one element; if the tile has multiple contents - as supported by `3DTILES_multiple_contents` - this array will have multiple elements. If the implicit root tile does not have content then `contentMetadata` must be omitted.
+
+Subtree metadata (`subtreeMetadata`) is encoded in JSON according to the [JSON Format](../../specification/Metadata/README.md#json-format) specification.
+
+<!-- omit in toc -->
+#### Property Tables
+
+Binary property values are stored in a **property table**. A property table must specify its class (`class`), which refers to a class ID in the `3DTILES_metadata` extension of root tileset JSON, and a dictionary of properties (`properties`), where each key is a property ID correspond to a class property and each value is the index of the buffer view containing property values. The property table may provide value arrays for only a subset of the properties of its class, but class properties marked `required: true` must not be omitted.
+
+A property may override the [`minimum` and `maximum` values](../../specification/Metadata#minimum-and-maximum-values) and the [`offset` and `scale`](../../specification/Metadata#offset-and-scale) from the property definition in the class, to account for the actual range of values that is stored in the property table.
+
+Array offsets (`arrayOffsets`) is required for variable-length arrays and string offsets (`stringOffsets`) is required for strings. For variable-length arrays of strings, both are required. `arrayOffsetType` describes the storage type for array offsets and `stringOffsetType` describes the storage type for string offsets. Allowed types are `UINT8`, `UINT16`, `UINT32`, and `UINT64`. The default is `UINT32`.
+
+Details of binary value encoding, including how to determine property value offsets for mixed-length string and array values, are defined by the [*Binary Table Format*](../../specification/Metadata/README.md#binary-table-format).
+
+> **Example:** The same JSON description of a subtree extended with tile, content, and subtree metadata. The subtree JSON refers to class IDs in the `3DTILES_metadata` schema definition. Tile and content metadata is stored in property tables; subtree metadata is encoded directly in JSON.
+>
+> _`3DTILES_metadata` extension in the root tileset JSON_
+> ```json
+> {
+>   "schema": {
+>     "classes": {
+>       "tile": {
+>         "properties": {
+>           "horizonOcclusionPoint": {
+>             "semantic": "TILE_HORIZON_OCCLUSION_POINT",
+>             "type": "VEC3",
+>             "componentType": "FLOAT64",
+>           },
+>           "countries": {
+>             "description": "Countries a tile intersects",
+>             "type": "STRING",
+>             "array": true
+>           }
+>         }
+>       },
+>       "content": {
+>         "properties": {
+>           "attributionIds": {
+>             "semantic": "ATTRIBUTION_IDS",
+>             "type": "SCALAR",
+>             "componentType": "UINT16",
+>             "array": true
+>           },
+>           "minimumHeight": {
+>             "semantic": "CONTENT_MINIMUM_HEIGHT",
+>             "type": "SCALAR",
+>             "componentType": "FLOAT64"
+>           },
+>           "maximumHeight": {
+>             "semantic": "CONTENT_MAXIMUM_HEIGHT",
+>             "type": "SCALAR",
+>             "componentType": "FLOAT64"
+>           },
+>           "triangleCount": {
+>             "type": "SCALAR",
+>             "componentType": "UINT32"
+>           }
+>         }
+>       },
+>       "subtree": {
+>         "properties": {
+>           "attributionStrings": {
+>             "semantic": "ATTRIBUTION_STRINGS",
+>             "type": "STRING",
+>             "array": true
+>           }
+>         }
+>       }
+>     }
+>   }
+> }
+> ```
+>
+> _Subtree JSON_
+> ```json
+> {
+>   "buffers": [
+>     {
+>       "name": "Availability Buffer",
+>       "uri": "availability.bin",
+>       "byteLength": 48
+>     },
+>     {
+>       "name": "Metadata Buffer",
+>       "uri": "metadata.bin",
+>       "byteLength": 6512
+>     }
+>   ],
+>   "bufferViews": [
+>     { "buffer": 0, "byteOffset": 0, "byteLength": 11 },
+>     { "buffer": 0, "byteOffset": 16, "byteLength": 32 },
+>     { "buffer": 1, "byteOffset": 0, "byteLength": 2040 },
+>     { "buffer": 1, "byteOffset": 2040, "byteLength": 1530 },
+>     { "buffer": 1, "byteOffset": 3576, "byteLength": 344 },
+>     { "buffer": 1, "byteOffset": 3920, "byteLength": 1024 },
+>     { "buffer": 1, "byteOffset": 4944, "byteLength": 240 },
+>     { "buffer": 1, "byteOffset": 5184, "byteLength": 122 },
+>     { "buffer": 1, "byteOffset": 5312, "byteLength": 480 },
+>     { "buffer": 1, "byteOffset": 5792, "byteLength": 480 },
+>     { "buffer": 1, "byteOffset": 6272, "byteLength": 240 }
+> 
+>   ],
+>   "tileAvailability": {
+>     "constant": 1
+>   },
+>   "contentAvailability": [{
+>     "bitstream": 0,
+>     "availableCount": 60
+>   }],
+>   "childSubtreeAvailability": {
+>     "bitstream": 1
+>   },
+>   "tileMetadata": {
+>     "class": "tile",
+>     "properties": {
+>       "horizonOcclusionPoint": {
+>         "values": 2
+>       },
+>       "countries": {
+>         "values": 3,
+>         "arrayOffsets": 4,
+>         "stringOffsets": 5,
+>         "arrayOffsetType": "UINT32",
+>         "stringOffsetType": "UINT32"
+>       }
+>     }
+>   },
+>   "contentMetadata": [
+>     {
+>       "class": "content",
+>       "properties": {
+>         "attributionIds": {
+>           "values": 6,
+>           "arrayOffsets": 7,
+>           "arrayOffsetType": "UINT16"
+>         },
+>         "minimumHeight": {
+>           "values": 8
+>         },
+>         "maximumHeight": {
+>           "values": 9
+>         },
+>         "triangleCount": {
+>           "values": 10,
+>           "min": 520,
+>           "max": 31902
+>         }
+>       }
+>     }
+>   ],
+>   "subtreeMetadata": {
+>     "class": "subtree",
+>     "properties": {
+>       "attributionStrings": [
+>         "Source A",
+>         "Source B",
+>         "Source C",
+>         "Source D"
+>       ]
+>     }
+>   }
+> }
+> ```
+
+<!-- omit in toc -->
+### Multiple Contents
+
+When using the `3DTILES_multiple_contents` extension `contentAvailability` and `contentMetadata` are provided for each content layer.
+
+> **Example:** JSON description of a subtree extended with multiple contents. In this example all tiles are available, all building contents are available, and only some tree contents are available. 
+> 
+> _Implicit root tile_
+> 
+> ```json
+> {
+>   "root": {
+>     "boundingVolume": {
+>       "region": [-1.318, 0.697, -1.319, 0.698, 0, 20]
+>     },
+>     "refine": "ADD",
+>     "geometricError": 5000,
+>     "extensions": {
+>       "3DTILES_multiple_contents": {
+>         "content": [
+>           {
+>             "uri": "buildings/{level}/{x}/{y}.b3dm",
+>           },
+>           {
+>             "uri": "trees/{level}/{x}/{y}.i3dm",
+>           }
+>         ]    
+>       },
+>       "3DTILES_implicit_tiling": {
+>         "subdivisionScheme": "QUADTREE",
+>         "availableLevels": 21,
+>         "subtreeLevels": 7,
+>         "subtrees": {
+>           "uri": "subtrees/{level}/{x}/{y}.json"
+>         },
+>       }
+>     }
+>   }
+> }
+> ```
+> 
+> _Subtree JSON_
+> ```json
+> {
+>   "tileAvailability": {
+>     "constant": 1
+>   },
+>   "contentAvailability": [
+>     {
+>       "constant": 1
+>     },
+>     {
+>       "bitstream": 0,
+>       "availableCount": 52
+>     }
+>   ],
+>   "childSubtreeAvailability": {
+>     "constant": 1
+>   },
+>   "contentMetadata": [
+>     {
+>       "class": "building",
+>       "properties": {
+>         "height": {
+>           "values": 1,
+>         },
+>         "owners": {
+>           "values": 2,
+>           "arrayOffsets": 3,
+>           "stringOffsets": 4
+>         }
+>       }
+>     },
+>     {
+>       "class": "tree",
+>       "properties": {
+>         "height": {
+>           "values": 5,
+>         },
+>         "species": {
+>           "values": 6
+>         }
+>       }
+>     }
+>   ]
+> }
+> ```
+
+## Subtree Binary Format
+
+The subtree binary format is an alternative to the JSON file format that allows the JSON and binary data to be embedded into a single binary file.
+
+The binary subtree format is little-endian and consists of a 24-byte header and a variable length payload:
+
+![Subtree Binary Format](figures/binary-subtree.jpg)
+
+Header fields:
+
+| Bytes | Field | Type     | Description |
+|-------|-------|----------|-------------|
+| 0-3   | Magic | `UINT32` | A magic number identifying this as a subtree file. This is always `0x74627573`, the four bytes of the ASCII string `subt` stored in little-endian order. |
+| 4-7   | Version | `UINT32` | The version number. Always `1` for this version of the specification. |
+| 8-15  | JSON byte length | `UINT64` | The length of the subtree JSON, including any padding. |
+| 16-23 | Binary byte length | `UINT64` | The length of the buffer (or 0 if the buffer does not exist) including any padding. |
+
+Each chunk must be padded so it ends on an 8-byte boundary:
+
+* The JSON chunk must be padded with trailing `Space` chars (`0x20`)
+* If it exists, the binary chunk must be padded with trailing zeros (`0x00`)
 
 ## Appendix A: Availability Indexing
 
