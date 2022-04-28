@@ -43,7 +43,7 @@ If `featureTableJSONByteLength` equals zero, the tile does not need to be render
 The body section immediately follows the header section, and is composed, in order, of four fields: `Feature Table`, `Batch Table`, `Indices`, and `Positions`.
 
 Code for reading the header can be found in
-[Vector3DModelTileContent.js](https://github.com/AnalyticalGraphicsInc/cesium/blob/vector-tiles/Source/Scene/Vector3DTileContent.js)
+[Vector3DTileContent.js](https://github.com/CesiumGS/cesium/blob/main/Source/Scene/Vector3DTileContent.js)
 in the Cesium implementation of 3D Tiles.
 
 ## Feature Table
